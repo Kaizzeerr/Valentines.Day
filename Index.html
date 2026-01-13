@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Interactive Valentine</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+:root { --theme:#ff4d6d; }
+body { margin:0; height:100vh; display:flex; justify-content:center; align-items:center; background:linear-gradient(135deg,var(--theme),#fad0c4); font-family:Arial,sans-serif; overflow:hidden; transition:background 0.6s ease; }
+.box { background:white; padding:30px; border-radius:18px; width:90%; max-width:450px; text-align:center; box-shadow:0 15px 30px rgba(0,0,0,0.25); position:relative; z-index:1; opacity:0; transform:translateY(20px); animation:fadeIn 0.6s forwards; }
+h1,h2,p{animation:slideUp 0.5s ease;}
+button { padding:10px 20px; font-size:16px; border-radius:8px; border:none; cursor:pointer; margin:6px; transition:transform 0.15s ease,background 0.3s ease,opacity 0.3s ease; }
+button:active { transform:scale(0.95);}
+.yes{background:var(--theme);color:white;}
+.no{background:#ccc;}
+input{width:100%;padding:10px;margin-top:12px;border-radius:8px;border:1px solid #ccc;font-size:16px;}
+input[type=color]{padding:0;height:40px;}
+.buttons{position:relative;height:90px;margin-top:15px;}
+.message{margin-top:10px;color:red;font-weight:bold;animation:shake 0.3s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes slideUp{from{transform:translateY(15px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+@keyframes shake{0%{transform:translateX(0px);}25%{transform:translateX(-5px);}50%{transform:translateX(5px);}75%{transform:translateX(-5px);}100%{transform:translateX(0px);}}
+.heart{position:absolute;width:20px;height:20px;background:red;transform:rotate(-45deg);animation:floatUp 4s linear forwards;z-index:0;}
+.heart:before,.heart:after{content:"";position:absolute;width:20px;height:20px;background:red;border-radius:50%;}
+.heart:before{top:-10px;left:0;} .heart:after{left:10px;top:0;}
+@keyframes floatUp{0%{transform:translateY(0) rotate(-45deg);opacity:1;}100%{transform:translateY(-300px) rotate(-45deg);opacity:0;}}
+</style>
+</head>
+<body>
+
+<div class="box" id="content"></div>
+<audio id="bgMusic" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
+<button id="musicToggle" style="position:fixed;bottom:10px;right:10px;z-index:2;">🎵 Music</button>
+
+<script>
+const content = document.getElementById("content");
+const music = document.getElementById("bgMusic");
+const musicToggle = document.getElementById("musicToggle");
+musicToggle.onclick = ()=>{ if(music.paused) music.play(); else music.pause(); };
+
+// Hearts animation
+setInterval(()=>{
+  const heart=document.createElement("div");
+  heart.className="heart";
+  heart.style.left=Math.random()*window.innerWidth+"px";
+  document.body.appendChild(heart);
+  setTimeout(()=>heart.remove(),4000);
+},500);
+
+// Fade helper
+function setContent(html){ content.style.opacity=0; setTimeout(()=>{content.innerHTML=html; content.style.opacity=1;},200); }
+
+// Smart keyword responses
+function getSmartResponse(text, lang){
+  text=text.toLowerCase();
+  if(lang==="tl"){
+    if(text.includes("pagod")||text.includes("tired")) return "Ah, naiintindihan kita, magpahinga ka muna 💖";
+    if(text.includes("paaralan")||text.includes("school")) return "Ay, school stress pala, kaya mo yan 💖";
+    if(text.includes("kaibigan")||text.includes("friends")) return "Nakakatuwa naman, ayos yan 💖";
+    if(text.includes("stress")) return "Huwag masyadong mag-stress, kaya mo yan 💖";
+  } else {
+    if(text.includes("tired")) return "Ah, I understand, take a rest 💖";
+    if(text.includes("school")) return "Ah, school stress, you got this 💖";
+    if(text.includes("friends")) return "Friends are great 💖";
+    if(text.includes("stress")) return "Don't stress too much, you got this 💖";
+  }
+  return lang==="tl"?"Salamat sa pagbabahagi 💖":"Thanks for sharing 💖";
+}
+
+// Variables
+let lang=null, qIndex=0;
+let answers={};
+
+// Language selection
+function selectLanguage(){
+  setContent(`<h2>Choose Language / Piliin ang Wika</h2>
+    <div class="buttons">
+      <button class="yes" onclick="startQuestions('en')">English</button>
+      <button class="yes" onclick="startQuestions('tl')">Tagalog</button>
+    </div>`);
+}
+
+// Start questions
+function startQuestions(selected){
+  lang=selected;
+  qIndex=0;
+  answers={};
+  showQuestion();
+}
+
+// Questions array
+function getQuestions(){
+  if(lang==="tl"){
+    return [
+      {id:"day",text:"Maganda ba ang araw mo ngayon?",type:"yesno"},
+      {id:"badreason",text:"Bakit hindi maganda ang araw mo?",type:"text",smart:true,condition:()=>answers.day===false},
+      {id:"feeling",text:"Ano ang pakiramdam mo ngayon?",type:"yesno",yesText:"Masaya",noText:"Pagod"},
+      {id:"energy",text:"May sapat ka bang enerhiya ngayon?",type:"yesno",yesText:"Oo",noText:"Hindi"},
+      {id:"color",text:"Ano ang paborito mong kulay?",type:"color"},
+      {id:"important",text:"Sino ang pinakamahalaga sa iyo?",type:"text",smart:true},
+      {id:"food",text:"Ano ang paborito mong pagkain?",type:"text",smart:true},
+      {id:"coping",text:"Ano ang ginagawa mo kapag nalulungkot ka?",type:"text",smart:true}
+    ];
+  } else {
+    return [
+      {id:"day",text:"Are you having a good day?",type:"yesno"},
+      {id:"badreason",text:"Why not?",type:"text",smart:true,condition:()=>answers.day===false},
+      {id:"feeling",text:"How are you feeling right now?",type:"yesno",yesText:"Happy",noText:"Tired"},
+      {id:"energy",text:"Do you have enough energy?",type:"yesno",yesText:"Yes",noText:"No"},
+      {id:"color",text:"What's your favorite color?",type:"color"},
+      {id:"important",text:"Who is most important to you?",type:"text",smart:true},
+      {id:"food",text:"What's your favorite food?",type:"text",smart:true},
+      {id:"coping",text:"What do you do when you're sad?",type:"text",smart:true}
+    ];
+  }
+}
+
+// Show question
+function showQuestion(){
+  const questions=getQuestions();
+  if(qIndex>=questions.length){ buildValentineQuestion(); return; }
+  const q=questions[qIndex];
+  if(q.condition && !q.condition()){ qIndex++; showQuestion(); return; }
+
+  if(q.type==="yesno"){
+    setContent(`<h2>${q.text}</h2>
+      <div class="buttons">
+        <button class="yes" onclick="handleAnswer(true)">${q.yesText|| (lang==="tl"?"Oo":"Yes")}</button>
+        <button class="no" onclick="handleAnswer(false)">${q.noText|| (lang==="tl"?"Hindi":"No")}</button>
+      </div>`);
+  } else if(q.type==="text"){
+    setContent(`<h2>${q.text}</h2>
+      <input id="answer" placeholder="${lang==="tl"?"I-type dito at pindutin ang Enter":"Type here and press Enter"}">
+      <div class="message" id="msg"></div>`);
+    const input=document.getElementById("answer");
+    input.focus();
+    input.addEventListener("keydown",function handler(e){
+      if(e.key==="Enter" && input.value.trim()!==""){
+        const msg=document.getElementById("msg");
+        if(q.smart) msg.innerText=getSmartResponse(input.value,lang);
+        answers[q.id]=input.value;
+        input.removeEventListener("keydown",handler);
+        setTimeout(()=>{qIndex++; showQuestion();},1000);
+      }
+    });
+  } else if(q.type==="color"){
+    setContent(`<h2>${q.text}</h2><input type="color" id="colorPicker">`);
+    const picker=document.getElementById("colorPicker");
+    picker.addEventListener("change",()=>{
+      document.documentElement.style.setProperty("--theme",picker.value);
+      document.body.style.background=`linear-gradient(135deg, ${picker.value}, #fad0c4)`;
+      answers[q.id]=picker.value;
+      setTimeout(()=>{qIndex++; showQuestion();},200);
+    });
+  }
+}
+
+// Final Valentine question
+function buildValentineQuestion(){
+  const yesText=lang==="tl"?"Oo 💖":"Yes 💖";
+  const noText=lang==="tl"?"Hindi 😢":"No 😢";
+  const finalText=lang==="tl"?"Ikaw ba ang magiging Valentine ko?":"Will you be my Valentine?";
+  setContent(`<h1>${finalText}</h1>
+    <div class="buttons">
+      <button class="yes" id="yesBtn">${yesText}</button>
+      <button class="no" id="noBtn">${noText}</button>
+    </div>`);
+  const yesBtn=document.getElementById("yesBtn");
+  const noBtn=document.getElementById("noBtn");
+  function moveNo(){ noBtn.style.left=Math.random()*220+"px"; noBtn.style.top=Math.random()*60+"px"; }
+  noBtn.addEventListener("mouseover",moveNo);
+  noBtn.addEventListener("touchstart",moveNo);
+  yesBtn.addEventListener("click",()=>{
+    const msg=lang==="tl"?"Salamat! 💖 Masaya akong maging Valentine mo!":"Thank you! 💖 Happy to be your Valentine!";
+    setContent(`<h1>${msg}</h1>`);
+  });
+}
+
+// Start
+selectLanguage();
+</script>
+</body>
+</html>
